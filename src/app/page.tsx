@@ -1,103 +1,282 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { stones as defaultStones } from '../data/stones';
+import { Stone } from '../types/stone';
+import Image from 'next/image';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [stones, setStones] = useState<Stone[]>(defaultStones);
+  const [loading, setLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string>('');
+  const [selectedColor, setSelectedColor] = useState<string>('');
+  const [selectedOrigin, setSelectedOrigin] = useState<string>('');
+  const [selectedClarity, setSelectedClarity] = useState<string>('');
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [minCarat, setMinCarat] = useState<number>(0);
+  const [maxCarat, setMaxCarat] = useState<number>(10);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
+  const [selectedClarities, setSelectedClarities] = useState<string[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    fetchStones();
+  }, []);
+
+  const fetchStones = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stones')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) {
+        setStones(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stones:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtreleme seçeneklerini dinamik olarak oluştur
+  const filterOptions = useMemo(() => {
+    const filteredStones = stones.filter(stone => 
+      selectedCategory === 'all' || stone.type === selectedCategory
+    );
+
+    const colors = Array.from(new Set(filteredStones.map(stone => stone.color)));
+    const origins = Array.from(new Set(filteredStones.map(stone => stone.origin)));
+    const clarities = Array.from(new Set(filteredStones.map(stone => stone.clarity)));
+
+    return { colors, origins, clarities };
+  }, [selectedCategory]);
+
+  const filteredStones = stones.filter((stone) => {
+    const categoryMatch = selectedCategory === 'all' || stone.type === selectedCategory;
+    const caratMatch = stone.carat >= minCarat && stone.carat <= maxCarat;
+    const colorMatch = selectedColors.length === 0 || selectedColors.includes(stone.color);
+    const originMatch = selectedOrigins.length === 0 || selectedOrigins.includes(stone.origin);
+    const clarityMatch = selectedClarities.length === 0 || selectedClarities.includes(stone.clarity);
+
+    return categoryMatch && caratMatch && colorMatch && originMatch && clarityMatch;
+  });
+
+  // Kategori değiştiğinde diğer filtreleri sıfırla
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setSelectedColors([]);
+    setSelectedOrigins([]);
+    setSelectedClarities([]);
+  };
+
+  // Checkbox değişikliklerini yönet
+  const handleCheckboxChange = (
+    value: string,
+    selectedValues: string[],
+    setSelectedValues: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
+    if (selectedValues.includes(value)) {
+      setSelectedValues(selectedValues.filter(v => v !== value));
+    } else {
+      setSelectedValues([...selectedValues, value]);
+    }
+  };
+
+  const getStoneImage = (type: string) => {
+    switch (type) {
+      case 'Yakut':
+        return '/images/yakut.png';
+      case 'Safir':
+        return '/images/safir.png';
+      case 'Zümrüt':
+        return '/images/zumrut.png';
+      default:
+        return '/images/default.png';
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-center mb-8">Değerli Taşlar</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Sol Sidebar - Kategoriler ve Filtreler */}
+          <div className="md:col-span-1 space-y-6">
+            {/* Kategoriler */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Kategoriler</h2>
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleCategoryChange('all')}
+                  className={`w-full text-left p-3 rounded-md transition-colors ${
+                    selectedCategory === 'all'
+                      ? 'bg-emerald-600 text-white'
+                      : 'hover:bg-gray-700'
+                  }`}
+                >
+                  Tüm Taşlar
+                </button>
+                <button
+                  onClick={() => handleCategoryChange('Yakut')}
+                  className={`w-full text-left p-3 rounded-md transition-colors ${
+                    selectedCategory === 'Yakut'
+                      ? 'bg-emerald-600 text-white'
+                      : 'hover:bg-gray-700'
+                  }`}
+                >
+                  Yakut
+                </button>
+                <button
+                  onClick={() => handleCategoryChange('Safir')}
+                  className={`w-full text-left p-3 rounded-md transition-colors ${
+                    selectedCategory === 'Safir'
+                      ? 'bg-emerald-600 text-white'
+                      : 'hover:bg-gray-700'
+                  }`}
+                >
+                  Safir
+                </button>
+                <button
+                  onClick={() => handleCategoryChange('Zümrüt')}
+                  className={`w-full text-left p-3 rounded-md transition-colors ${
+                    selectedCategory === 'Zümrüt'
+                      ? 'bg-emerald-600 text-white'
+                      : 'hover:bg-gray-700'
+                  }`}
+                >
+                  Zümrüt
+                </button>
+              </div>
+            </div>
+
+            {/* Karat Filtresi */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Karat Filtresi</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Minimum Karat</label>
+                  <input
+                    type="number"
+                    className="w-full bg-gray-700 rounded-md p-2"
+                    value={minCarat}
+                    onChange={(e) => setMinCarat(Number(e.target.value))}
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Maksimum Karat</label>
+                  <input
+                    type="number"
+                    className="w-full bg-gray-700 rounded-md p-2"
+                    value={maxCarat}
+                    onChange={(e) => setMaxCarat(Number(e.target.value))}
+                    min="0"
+                    step="0.1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Renk Filtresi */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Renk Filtresi</h2>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {filterOptions.colors.map((color) => (
+                  <label key={color} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedColors.includes(color)}
+                      onChange={() => handleCheckboxChange(color, selectedColors, setSelectedColors)}
+                      className="form-checkbox h-4 w-4 text-emerald-600 rounded border-gray-600 bg-gray-700"
+                    />
+                    <span>{color}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Menşei Filtresi */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Menşei Filtresi</h2>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {filterOptions.origins.map((origin) => (
+                  <label key={origin} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrigins.includes(origin)}
+                      onChange={() => handleCheckboxChange(origin, selectedOrigins, setSelectedOrigins)}
+                      className="form-checkbox h-4 w-4 text-emerald-600 rounded border-gray-600 bg-gray-700"
+                    />
+                    <span>{origin}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Berraklık Filtresi */}
+            <div className="bg-gray-800 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Berraklık Filtresi</h2>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {filterOptions.clarities.map((clarity) => (
+                  <label key={clarity} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedClarities.includes(clarity)}
+                      onChange={() => handleCheckboxChange(clarity, selectedClarities, setSelectedClarities)}
+                      className="form-checkbox h-4 w-4 text-emerald-600 rounded border-gray-600 bg-gray-700"
+                    />
+                    <span>{clarity}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Taraf - Taş Listesi */}
+          <div className="md:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredStones.map((stone) => (
+                <Link href={`/stone/${stone.id}`} key={stone.id}>
+                  <div className="bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <div className="relative h-48">
+                      <Image
+                        src={getStoneImage(stone.type)}
+                        alt={stone.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-bold">{stone.type}</span>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold mb-2">{stone.name}</h3>
+                      <div className="space-y-2 text-gray-300">
+                        <p>Karat: {stone.carat}</p>
+                        <p>Renk: {stone.color}</p>
+                        <p>Menşei: {stone.origin}</p>
+                        <p>Berraklık: {stone.clarity}</p>
+                        <p className="text-lg font-semibold text-emerald-400">{stone.price.toLocaleString('tr-TR')} TL</p>
+                      </div>
+                      <p className="mt-4 text-gray-400">{stone.description}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }
