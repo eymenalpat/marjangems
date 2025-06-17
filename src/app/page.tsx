@@ -13,14 +13,12 @@ export default function Home() {
   const [selectedType, setSelectedType] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
   const [selectedOrigin, setSelectedOrigin] = useState<string>('');
-  const [selectedClarity, setSelectedClarity] = useState<string>('');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000000]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [minCarat, setMinCarat] = useState<number>(0);
   const [maxCarat, setMaxCarat] = useState<number>(10);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
-  const [selectedClarities, setSelectedClarities] = useState<string[]>([]);
 
   useEffect(() => {
     fetchStones();
@@ -52,9 +50,8 @@ export default function Home() {
 
     const colors = Array.from(new Set(filteredStones.map(stone => stone.color)));
     const origins = Array.from(new Set(filteredStones.map(stone => stone.origin)));
-    const clarities = Array.from(new Set(filteredStones.map(stone => stone.clarity)));
 
-    return { colors, origins, clarities };
+    return { colors, origins };
   }, [selectedCategory]);
 
   const filteredStones = stones.filter((stone) => {
@@ -62,9 +59,8 @@ export default function Home() {
     const caratMatch = stone.carat >= minCarat && stone.carat <= maxCarat;
     const colorMatch = selectedColors.length === 0 || selectedColors.includes(stone.color);
     const originMatch = selectedOrigins.length === 0 || selectedOrigins.includes(stone.origin);
-    const clarityMatch = selectedClarities.length === 0 || selectedClarities.includes(stone.clarity);
 
-    return categoryMatch && caratMatch && colorMatch && originMatch && clarityMatch;
+    return categoryMatch && caratMatch && colorMatch && originMatch;
   });
 
   // Kategori değiştiğinde diğer filtreleri sıfırla
@@ -72,7 +68,6 @@ export default function Home() {
     setSelectedCategory(category);
     setSelectedColors([]);
     setSelectedOrigins([]);
-    setSelectedClarities([]);
   };
 
   // Checkbox değişikliklerini yönet
@@ -220,24 +215,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
-            {/* Berraklık Filtresi */}
-            <div className="bg-gray-800 p-6 rounded-lg">
-              <h2 className="text-xl font-semibold mb-4">Berraklık Filtresi</h2>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {filterOptions.clarities.map((clarity) => (
-                  <label key={clarity} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedClarities.includes(clarity)}
-                      onChange={() => handleCheckboxChange(clarity, selectedClarities, setSelectedClarities)}
-                      className="form-checkbox h-4 w-4 text-emerald-600 rounded border-gray-600 bg-gray-700"
-                    />
-                    <span>{clarity}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Sağ Taraf - Taş Listesi */}
@@ -265,7 +242,6 @@ export default function Home() {
                         <p>Karat: {stone.carat}</p>
                         <p>Renk: {stone.color}</p>
                         <p>Menşei: {stone.origin}</p>
-                        <p>Berraklık: {stone.clarity}</p>
                         <p className="text-lg font-semibold text-emerald-400">{stone.price.toLocaleString('tr-TR')} TL</p>
                       </div>
                       <p className="mt-4 text-gray-400">{stone.description}</p>
